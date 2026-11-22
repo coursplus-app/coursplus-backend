@@ -27,7 +27,16 @@ app:
   # URL publique du backend (utilisée pour le webhook Konnect)
   backend-url: ${BACKEND_URL:http://localhost:8081}
   storage:
+    # local = disque du serveur (développement) | s3 = bucket compatible S3, ex. Cloudflare R2 (production gratuite :
+    # le disque de Render est effacé à chaque redémarrage)
+    type: ${STORAGE_TYPE:local}
     dir: ${STORAGE_DIR:./uploads}
+    s3:
+      endpoint: ${R2_ENDPOINT:}   # https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+      region: ${R2_REGION:auto}
+      bucket: ${R2_BUCKET:}
+      access-key: ${R2_ACCESS_KEY_ID:}
+      secret-key: ${R2_SECRET_ACCESS_KEY:}
   jwt:
     # Clé secrète (Base64, au moins 32 octets). À CHANGER en production !
     secret: ${JWT_SECRET:Y2hhbmdlLW1vaS1lbi1wcm9kdWN0aW9uLWNvdXJzcGx1cy1zZWNyZXQta2V5LTIwMjY=}

@@ -20,6 +20,7 @@
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <aws.sdk.version>2.39.6</aws.sdk.version>
         <!-- >= 1.18.38 requis pour compiler avec JDK 24 -->
         <lombok.version>1.18.40</lombok.version>
     </properties>
@@ -52,6 +53,20 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Stockage des vidéos et PDF dans un bucket compatible S3 (Cloudflare R2) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${aws.sdk.version}</version>
+            <exclusions>
+                <!-- client asynchrone inutile ici (on utilise le client synchrone) -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

@@ -1,24 +1,22 @@
 package tn.coursplus.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import tn.coursplus.exception.ApiException;
+import tn.coursplus.service.storage.ObjectChunk;
+import tn.coursplus.service.storage.ObjectStore;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Enregistre les vidéos et PDF sur le disque (dossier app.storage.dir).
+ * Enregistre et relit les vidéos et PDF. Où ils sont rangés (disque local ou Cloudflare R2) dépend de
+ * app.storage.type, voir {@link ObjectStore}.
  * Les fichiers ne sont JAMAIS servis directement : ils passent par MediaController
  * qui vérifie les droits d'accès.
- * Plus tard on pourra remplacer ce service par un stockage cloud (S3, Bunny Stream...).
  */
 @Service
 public class StorageService {
@@ -26,12 +24,10 @@ public class StorageService {
     private static final Set<String> VIDEO_EXT = Set.of("mp4", "webm", "mov", "m4v");
     private static final Set<String> DOC_EXT = Set.of("pdf");
 
-    private final Path root;
+    private final ObjectStore store;
 
-    public StorageService(@Value("${app.storage.dir}") String dir) throws IOException {
-        this.root = Path.of(dir).toAbsolutePath().normalize();
-        Files.createDirectories(root.resolve("videos"));
-        Files.createDirectories(root.resolve("documents"));
+    public StorageService(ObjectStore store) {
+        this.store = store;
     }
 
     public String saveVideo(MultipartFile file) {
@@ -52,7 +48,7 @@ public class StorageService {
             throw ApiException.badRequest("Format non accepté. Formats autorisés : " + allowed);
         }
         try (InputStream in = file.getInputStream()) {
-            return store(in, folder, ext);
+            return put(in, file.getSize(), folder, ext);
         } catch (IOException e) {
             throw new IllegalStateException("Impossible d'enregistrer le fichier", e);
         }
@@ -60,25 +56,26 @@ public class StorageService {
 
     /** Utilisé aussi par le chargement des données de démonstration. */
     public String store(InputStream in, String folder, String ext) throws IOException {
+        return put(in, -1, folder, ext);
+    }
+
+    private String put(InputStream in, long length, String folder, String ext) throws IOException {
         String name = folder + "/" + UUID.randomUUID() + "." + ext;
-        Files.copy(in, root.resolve(name), StandardCopyOption.REPLACE_EXISTING);
+        store.put(name, in, length);
         return name;
     }
 
-    public Path resolve(String storedName) {
-        Path p = root.resolve(storedName).normalize();
-        if (!p.startsWith(root)) {
-            throw ApiException.forbidden("Chemin invalide");
-        }
-        return p;
+    /**
+     * Ouvre le fichier (en entier ou la plage demandée par l'en-tête Range).
+     * Renvoie null s'il n'existe pas.
+     */
+    public ObjectChunk open(String storedName, String rangeHeader) {
+        if (storedName == null) return null;
+        return store.open(storedName, rangeHeader);
     }
 
     public void delete(String storedName) {
         if (storedName == null) return;
-        try {
-            Files.deleteIfExists(resolve(storedName));
-        } catch (IOException ignored) {
-            // pas grave si le fichier n'existe plus
-        }
+        store.delete(storedName);
     }
 }
