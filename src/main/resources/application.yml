@@ -1,0 +1,93 @@
+# ============================================================
+#  Configuration commune
+# ============================================================
+spring:
+  application:
+    name: coursplus
+  profiles:
+    # "dev" par défaut : base H2 dans un fichier + données de démonstration.
+    # Pour PostgreSQL : lancer avec --spring.profiles.active=prod
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jpa:
+    open-in-view: true
+    hibernate:
+      ddl-auto: update
+  servlet:
+    multipart:
+      # Taille max d'une vidéo envoyée par un enseignant
+      max-file-size: 1GB
+      max-request-size: 1GB
+
+server:
+  port: 8081
+
+app:
+  # URL du frontend Angular (pour CORS et pour les redirections après paiement)
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  # URL publique du backend (utilisée pour le webhook Konnect)
+  backend-url: ${BACKEND_URL:http://localhost:8081}
+  storage:
+    dir: ${STORAGE_DIR:./uploads}
+  jwt:
+    # Clé secrète (Base64, au moins 32 octets). À CHANGER en production !
+    secret: ${JWT_SECRET:Y2hhbmdlLW1vaS1lbi1wcm9kdWN0aW9uLWNvdXJzcGx1cy1zZWNyZXQta2V5LTIwMjY=}
+    expiration-hours: 72
+    media-expiration-minutes: 15 # court : le lecteur renouvelle le lien avant l'expiration
+  # Part de l'enseignant sur ses ventes (0.70 = 70 %)
+  teacher-share: 0.70
+  # Durée d'un abonnement mensuel
+  subscription-days: 30
+  payment:
+    # true = bouton "Simuler le paiement" quand Konnect n'est pas configuré (dev uniquement)
+    simulation: false
+    konnect:
+      # Sandbox : https://api.sandbox.konnect.network/api/v2  |  Production : https://api.konnect.network/api/v2
+      base-url: ${KONNECT_BASE_URL:https://api.sandbox.konnect.network/api/v2}
+      api-key: ${KONNECT_API_KEY:}
+      wallet-id: ${KONNECT_WALLET_ID:}
+    # Instructions affichées pour le paiement manuel
+    manual-instructions: ${MANUAL_PAYMENT_INSTRUCTIONS:Envoie le montant par D17 au 00 000 000 (ou en espèces à un membre de l'équipe) en mettant la référence dans la note, puis colle le numéro de transaction ci-dessous. L'accès est activé dès qu'un administrateur valide.}
+  seed:
+    enabled: false
+
+---
+# ============================================================
+#  Profil DEV : H2 (aucune installation nécessaire)
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:file:./data/coursplus;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+app:
+  payment:
+    simulation: true
+  seed:
+    enabled: true
+
+---
+# ============================================================
+#  Profil PROD : PostgreSQL
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/coursplus}
+    username: ${DB_USER:coursplus}
+    # Pas de valeur par défaut : DB_PASSWORD est obligatoire en prod
+    password: ${DB_PASSWORD}
+app:
+  jwt:
+    # Pas de valeur par défaut : l'appli refuse de démarrer sans JWT_SECRET
+    secret: ${JWT_SECRET}
+  seed:
+    enabled: ${SEED_DATA:false}

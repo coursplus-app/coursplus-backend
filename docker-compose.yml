@@ -1,0 +1,16 @@
+# Base PostgreSQL pour le profil "prod" (facultatif en développement : H2 suffit)
+# Lancer :  docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    container_name: coursplus-db
+    environment:
+      POSTGRES_DB: coursplus
+      POSTGRES_USER: coursplus
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-coursplus}  # défaut dev ; surcharger via .env / variable d'environnement
+    ports:
+      - "5432:5432"
+    volumes:
+      - coursplus-data:/var/lib/postgresql/data
+volumes:
+  coursplus-data:
